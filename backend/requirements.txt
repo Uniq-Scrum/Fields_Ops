@@ -1,0 +1,51 @@
+# --- Web framework ---
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+
+# --- Configuration & validation ---
+pydantic==2.10.4
+pydantic-settings==2.7.1
+
+# --- Database (PostgreSQL + PostGIS) ---
+# psycopg2-binary: sync driver, used by the sync engine (routes, Celery
+#                  tasks, Kafka consumers, scripts).
+# asyncpg:         async driver, used by the async engine (async routes).
+# GeoAlchemy2 is intentionally not listed yet — add it alongside the first
+# spatial ORM model (backend/app/models/field_officer.py and
+# service_request.py currently have none).
+sqlalchemy==2.0.36
+psycopg2-binary==2.9.10
+asyncpg==0.30.0
+
+# --- Migrations ---
+alembic==1.14.0
+
+# --- Password hashing (auth) ---
+# bcrypt is pinned explicitly (not just via the passlib[bcrypt] extra):
+# passlib 1.7.4 (last release, unmaintained) probes bcrypt's internal
+# version metadata and breaks on bcrypt>=4.1, which dropped that attribute.
+passlib[bcrypt]==1.7.4
+bcrypt==4.0.1
+
+# --- Validation ---
+# email-validator: required for pydantic's EmailStr (registration schema).
+email-validator==2.2.0
+# phonenumbers: Google's libphonenumber port — validates mobile numbers
+# against each region's real numbering plan (length, prefixes) instead of a
+# generic E.164 length check, so numbers from any country are validated
+# correctly rather than just "looks plausible".
+phonenumbers==8.13.55
+
+# --- JWT (auth) ---
+PyJWT==2.10.1
+
+# --- Redis ---
+redis==5.2.1
+
+# --- Kafka (matches Confluent Platform 7.6.1 broker) ---
+confluent-kafka==2.6.1
+
+# --- Testing ---
+pytest==8.3.4
+pytest-cov==6.0.0
+httpx==0.28.1

@@ -1,0 +1,22 @@
+# =============================================================================
+# Root Docker Compose entrypoint
+# =============================================================================
+# This file intentionally defines NO services of its own.
+#
+# `infrastructure/docker/docker-compose.yml` is the single source of truth
+# for all FieldMind AI infrastructure (PostgreSQL/PostGIS, Redis, ZooKeeper,
+# Kafka) — infrastructure is owned and maintained there. Duplicating those
+# service definitions in this file would let the two drift out of sync.
+#
+# This file exists purely for developer convenience: it includes the real
+# definition via the Compose `include:` directive (Docker Compose v2.20+),
+# so `docker compose up -d` works from the repository root without an
+# extra `-f infrastructure/docker/docker-compose.yml` flag.
+#
+# See infrastructure/docker/docker-compose.yml for all service, network,
+# and volume definitions, and docs/ARCHITECTURE.md / docs/DATABASE.md /
+# docs/KAFKA.md for usage and connection details.
+# =============================================================================
+
+include:
+  - infrastructure/docker/docker-compose.yml
