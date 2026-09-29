@@ -1,40 +1,10 @@
 """
-Pydantic schemas for Service Requests and Voice Intake workflows.
+Pydantic schemas for Service Requests and Multi-Modal Customer Intake workflows.
 """
 from typing import Any
 import uuid
 
 from pydantic import BaseModel, Field
-
-
-class VoiceIntakeRequest(BaseModel):
-    """
-    Validated incoming voice request payload.
-
-    Receives the customer's voice recording reference (WhatsApp audio note,
-    mobile app upload, or S3 object URI) to enter the AI intake pipeline.
-    """
-    job_id: str = Field(
-        default_factory=lambda: str(uuid.uuid4()),
-        description="Unique identifier for the service job. Auto-generated if not provided.",
-    )
-    customer_id: str | None = Field(
-        default=None,
-        description="Identifier of the requesting customer if authenticated.",
-    )
-    media_ref: str = Field(
-        ...,
-        min_length=1,
-        description="Persisted media reference, local audio file path, or object storage URL.",
-    )
-    audio_url: str | None = Field(
-        default=None,
-        description="Public or pre-signed URL to the audio file if distinct from media_ref.",
-    )
-    metadata: dict[str, Any] = Field(
-        default_factory=dict,
-        description="Additional context such as client device, language preference, or channel.",
-    )
 
 
 class VoiceProcessingStateResponse(BaseModel):
@@ -48,8 +18,88 @@ class VoiceProcessingStateResponse(BaseModel):
     error_message: str | None = None
 
 
+class CustomerIntakeRequest(BaseModel):
+    """
+    Unified multi-modal customer request payload.
+
+    Accepts either natural language text or voice recording references
+    to enter the LangGraph AI multi-agent workflow.
+    """
+    job_id: str = Field(
+        default_factory=lambda: str(uuid.uuid4()),
+        description="Unique identifier for the service job. Auto-generated if not provided.",
+    )
+    input_type: str | None = Field(
+        default=None,
+        description="Channel modality: 'TEXT' or 'VOICE'. Automatically inferred if omitted.",
+    )
+    request_text: str | None = Field(
+        default=None,
+        description="Customer repair description in text format.",
+    )
+    audio_ref: str | None = Field(
+        default=None,
+        description="Persisted media reference, S3 URI, or URL for audio notes.",
+    )
+    media_ref: str | None = Field(
+        default=None,
+        description="Alias for audio_ref for backwards compatibility.",
+    )
+    customer_id: str | None = Field(
+        default=None,
+        description="Identifier of the requesting customer if authenticated.",
+    )
+    customer_info: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Customer profile details (name, phone, email).",
+    )
+    metadata: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Additional context such as client device, channel, or location coordinates.",
+    )
+
+
+class CustomerIntakeResponse(BaseModel):
+    """Response returned upon connecting customer request to the LangGraph intake workflow."""
+    job_id: str
+    input_type: str
+    status: str
+    current_step: str
+    request_text: str | None = None
+    user_prompt: str | None = None
+    audio_transcript: str | None = None
+    voice_state: VoiceProcessingStateResponse | None = None
+    errors: list[str] = Field(default_factory=list)
+
+
+# --- Backwards compatibility wrappers for Voice-only intake ---
+class VoiceIntakeRequest(BaseModel):
+    """Validated incoming voice request payload (backwards-compatible)."""
+    job_id: str = Field(
+        default_factory=lambda: str(uuid.uuid4()),
+        description="Unique identifier for the service job.",
+    )
+    customer_id: str | None = Field(
+        default=None,
+        description="Identifier of the requesting customer.",
+    )
+    media_ref: str = Field(
+        ...,
+        min_length=1,
+        description="Persisted media reference or audio file path/URL.",
+    )
+    audio_url: str | None = Field(
+        default=None,
+        description="Public or pre-signed URL to the audio file.",
+    )
+    metadata: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Additional context metadata.",
+    )
+
+
 class VoiceIntakeResponse(BaseModel):
-    """Response returned upon connecting the voice request to the LangGraph intake workflow."""
+    """Response returned upon connecting voice request to intake workflow."""
     job_id: str
     current_step: str
     audio_transcript: str | None = None

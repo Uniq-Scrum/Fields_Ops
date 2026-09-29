@@ -12,6 +12,7 @@ from typing import Any
 
 from app.agents.graph.state import (
     FieldMindWorkflowState,
+    IntakeStatus,
     VoiceProcessingState,
     VoiceProcessingStatus,
 )
@@ -38,9 +39,9 @@ def initialize_voice_intake(state: FieldMindWorkflowState) -> dict[str, Any]:
     - Workflow failures are captured appropriately.
     """
     job_id = state.get("job_id")
-    media_ref = state.get("media_ref") or state.get("audio_url")
+    media_ref = state.get("audio_ref") or state.get("media_ref") or state.get("audio_url")
 
-    errors: list[str] = []
+    errors: list[str] = list(state.get("errors", []))
 
     # 1. Verify Job ID
     if not job_id or not str(job_id).strip():
@@ -56,7 +57,7 @@ def initialize_voice_intake(state: FieldMindWorkflowState) -> dict[str, Any]:
 
     if errors:
         failed_voice_state: VoiceProcessingState = {
-            "status": VoiceProcessingStatus.FAILED,
+            "status": VoiceProcessingStatus.FAILED.value,
             "media_ref": str(media_ref or ""),
             "media_format": None,
             "duration_seconds": None,
@@ -66,6 +67,7 @@ def initialize_voice_intake(state: FieldMindWorkflowState) -> dict[str, Any]:
         }
         return {
             "voice_state": failed_voice_state,
+            "status": IntakeStatus.FAILED.value,
             "current_step": "VOICE_INTAKE_FAILED",
             "errors": errors,
         }
@@ -76,7 +78,7 @@ def initialize_voice_intake(state: FieldMindWorkflowState) -> dict[str, Any]:
     media_format = raw_ext.lstrip(".") if raw_ext else "audio"
 
     initial_voice_state: VoiceProcessingState = {
-        "status": VoiceProcessingStatus.INITIALIZED,
+        "status": VoiceProcessingStatus.INITIALIZED.value,
         "media_ref": clean_media_ref,
         "media_format": media_format,
         "duration_seconds": None,
@@ -89,9 +91,11 @@ def initialize_voice_intake(state: FieldMindWorkflowState) -> dict[str, Any]:
 
     return {
         "job_id": str(job_id),
+        "audio_ref": clean_media_ref,
         "media_ref": clean_media_ref,
         "audio_url": clean_media_ref if clean_media_ref.startswith(("http://", "https://")) else state.get("audio_url"),
         "voice_state": initial_voice_state,
+        "status": IntakeStatus.PROCESSING.value,
         "current_step": "VOICE_INITIALIZED",
         "errors": [],
     }
@@ -109,26 +113,27 @@ def transcribe_voice(
     - Transcription result updates state and audio_transcript.
     - Workflow failures during transcription are captured appropriately.
     """
-    # Guard: if errors already occurred or voice state failed, do not proceed
     current_errors = state.get("errors", [])
     voice_state = state.get("voice_state") or {}
 
-    if current_errors or voice_state.get("status") == VoiceProcessingStatus.FAILED:
+    if current_errors or voice_state.get("status") in {VoiceProcessingStatus.FAILED, VoiceProcessingStatus.FAILED.value}:
         logger.warning("Skipping transcription due to existing workflow errors: %s", current_errors)
         return {
+            "status": IntakeStatus.FAILED.value,
             "current_step": "VOICE_TRANSCRIPTION_SKIPPED",
         }
 
-    media_ref = state.get("media_ref") or voice_state.get("media_ref")
+    media_ref = state.get("audio_ref") or state.get("media_ref") or voice_state.get("media_ref")
     if not media_ref:
         err_msg = "Cannot transcribe: no media reference available"
         logger.error(err_msg)
         return {
             "voice_state": {
                 **voice_state,
-                "status": VoiceProcessingStatus.FAILED,
+                "status": VoiceProcessingStatus.FAILED.value,
                 "error_message": err_msg,
             },
+            "status": IntakeStatus.FAILED.value,
             "current_step": "VOICE_TRANSCRIPTION_FAILED",
             "errors": [err_msg],
         }
@@ -141,7 +146,7 @@ def transcribe_voice(
 
         updated_voice_state: VoiceProcessingState = {
             **voice_state,
-            "status": VoiceProcessingStatus.TRANSCRIBED,
+            "status": VoiceProcessingStatus.TRANSCRIBED.value,
             "media_ref": media_ref,
             "transcription": result.text,
             "duration_seconds": result.duration_seconds,
@@ -153,6 +158,7 @@ def transcribe_voice(
             "voice_state": updated_voice_state,
             "audio_transcript": result.text,
             "user_prompt": result.text,
+            "status": IntakeStatus.READY_FOR_DIAGNOSTICS.value,
             "current_step": "VOICE_TRANSCRIBED",
             "errors": [],
         }
@@ -163,12 +169,13 @@ def transcribe_voice(
 
         failed_voice_state: VoiceProcessingState = {
             **voice_state,
-            "status": VoiceProcessingStatus.FAILED,
+            "status": VoiceProcessingStatus.FAILED.value,
             "error_message": err_msg,
         }
 
         return {
             "voice_state": failed_voice_state,
+            "status": IntakeStatus.FAILED.value,
             "current_step": "VOICE_TRANSCRIPTION_FAILED",
             "errors": [err_msg],
         }
