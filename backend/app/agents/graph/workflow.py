@@ -72,9 +72,24 @@ def handle_workflow_failure(state: FieldMindWorkflowState) -> dict[str, Any]:
     """Capture and record workflow failure state cleanly."""
     errors = state.get("errors", [])
     logger.error("LangGraph intake workflow captured failure: %s", errors)
+
+    voice_state = state.get("voice_state")
+    input_type = str(state.get("input_type", "")).upper()
+    if voice_state is None and "VOICE" in input_type:
+        voice_state = {
+            "status": VoiceProcessingStatus.FAILED.value,
+            "media_ref": str(state.get("audio_ref") or state.get("media_ref") or ""),
+            "media_format": None,
+            "duration_seconds": None,
+            "transcription": None,
+            "word_confidence": None,
+            "error_message": "; ".join(errors),
+        }
+
     return {
         "status": IntakeStatus.FAILED.value,
         "current_step": "WORKFLOW_FAILED",
+        "voice_state": voice_state,
     }
 
 

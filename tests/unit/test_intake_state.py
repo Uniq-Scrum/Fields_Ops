@@ -71,7 +71,10 @@ def test_create_initial_intake_state_for_text():
 
     assert state["job_id"] == job_id
     assert state["customer_id"] == customer_id
-    assert state["customer_info"] == customer_info
+    assert state["customer_info"]["name"] == customer_info["name"]
+    assert state["customer_info"]["phone"] == customer_info["phone"]
+    assert state["customer_info"]["email"] == customer_info["email"]
+    assert state["customer_info"]["customer_id"] == customer_id
     assert state["input_type"] == "TEXT"
     assert state["request_text"] == "Ceiling fan is sparking when turned on"
     assert state["user_prompt"] == "Ceiling fan is sparking when turned on"
@@ -198,32 +201,28 @@ def test_missing_audio_ref_for_voice_handled():
 
 def test_checkpoint_recovery_with_memory_saver():
     """Task 8: Verify checkpoint state association and recovery by thread ID."""
+    from app.agents.graph.workflow import run_intake_workflow
+
     saver = get_memory_checkpointer()
-    thread_id = "job-recovery-test-01"
-    config = {"configurable": {"thread_id": thread_id}}
+    job_id = "recovery-test-01"
+    thread_id = f"job-{job_id}"
 
-    checkpoint_payload = {
-        "v": 1,
-        "id": "chk-001",
-        "ts": "2026-09-29T21:00:00Z",
-        "channel_values": {
-            "job_id": "recovery-test-01",
-            "current_step": "CHECKPOINT_SAVED",
-            "status": IntakeStatus.READY_FOR_DIAGNOSTICS.value,
-        },
-        "channel_versions": {},
-        "versions_seen": {},
-    }
+    # Execute workflow with checkpointer
+    state = run_intake_workflow(
+        job_id=job_id,
+        input_type=InputType.TEXT,
+        request_text="Electrical fuse blown in kitchen",
+        checkpointer=saver,
+    )
+    assert state["current_step"] == "READY_FOR_INTENT_EXTRACTION"
 
-    # Store checkpoint
-    saver.put(config, checkpoint_payload, metadata={}, new_versions={})
-
-    # Recover state
+    # Recover state by thread ID
     recovered = recover_workflow_state(thread_id, checkpointer=saver)
     assert recovered is not None
-    assert recovered["job_id"] == "recovery-test-01"
-    assert recovered["current_step"] == "CHECKPOINT_SAVED"
+    assert recovered["job_id"] == job_id
+    assert recovered["current_step"] == "READY_FOR_INTENT_EXTRACTION"
     assert recovered["status"] == IntakeStatus.READY_FOR_DIAGNOSTICS.value
+    assert recovered["request_text"] == "Electrical fuse blown in kitchen"
 
 
 def test_checkpoint_recovery_nonexistent_thread():

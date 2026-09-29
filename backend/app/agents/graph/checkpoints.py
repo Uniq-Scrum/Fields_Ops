@@ -99,7 +99,7 @@ def recover_workflow_state(
         return None
 
     saver = checkpointer or get_memory_checkpointer()
-    config = {"configurable": {"thread_id": str(thread_id).strip()}}
+    config = {"configurable": {"thread_id": str(thread_id).strip(), "checkpoint_ns": ""}}
 
     try:
         checkpoint_tuple: CheckpointTuple | None = saver.get_tuple(config)

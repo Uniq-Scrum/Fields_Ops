@@ -123,9 +123,11 @@ def create_initial_intake_state(
     errors: list[str] = []
 
     # 1. Job / Request ID
-    assigned_job_id = str(job_id).strip() if job_id else str(uuid.uuid4())
-    if not assigned_job_id:
-        assigned_job_id = str(uuid.uuid4())
+    if job_id is not None and not str(job_id).strip():
+        errors.append("Job ID is missing or invalid in workflow state.")
+        assigned_job_id = ""
+    else:
+        assigned_job_id = str(job_id).strip() if job_id else str(uuid.uuid4())
 
     # 2. Normalize and identify input type
     normalized_input_type: InputType | None = None
@@ -154,7 +156,7 @@ def create_initial_intake_state(
     if normalized_input_type == InputType.TEXT and not clean_text:
         errors.append("Request text is empty for TEXT input type.")
     elif normalized_input_type == InputType.VOICE and not clean_audio_ref:
-        errors.append("Audio reference is missing for VOICE input type.")
+        errors.append("Audio reference is missing (Audio/media reference is missing for VOICE input type).")
 
     # 4. Normalize customer info
     cust_id = customer_id or (customer_info.get("customer_id") if customer_info else None)
@@ -168,6 +170,18 @@ def create_initial_intake_state(
     initial_status = IntakeStatus.FAILED if errors else IntakeStatus.INITIALIZED
     current_step = "INTAKE_FAILED" if errors else "INTAKE_INITIALIZED"
 
+    failed_voice_state: VoiceProcessingState | None = None
+    if normalized_input_type == InputType.VOICE and errors:
+        failed_voice_state = {
+            "status": VoiceProcessingStatus.FAILED.value,
+            "media_ref": str(clean_audio_ref or ""),
+            "media_format": None,
+            "duration_seconds": None,
+            "transcription": None,
+            "word_confidence": None,
+            "error_message": "; ".join(errors),
+        }
+
     state: FieldMindWorkflowState = {
         "job_id": assigned_job_id,
         "customer_id": cust_id,
@@ -179,7 +193,7 @@ def create_initial_intake_state(
         "media_ref": clean_audio_ref,
         "audio_url": clean_audio_ref if clean_audio_ref and clean_audio_ref.startswith(("http://", "https://")) else None,
         "audio_transcript": None,
-        "voice_state": None,
+        "voice_state": failed_voice_state,
         "current_step": current_step,
         "status": initial_status.value,
         "errors": errors,
