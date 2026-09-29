@@ -16,7 +16,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.api.exception_handlers import register_exception_handlers
-from app.api.routes import admin, auth, health, technicians, users
+from app.api.routes import admin, auth, health, service_requests, technicians, users
 from app.core.database import connect_with_retry, dispose_async_engine, dispose_engine
 from app.core.kafka import connect_with_retry as kafka_connect_with_retry
 from app.core.kafka import dispose_kafka
@@ -56,8 +56,9 @@ app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(technicians.router)
 app.include_router(admin.router)
+app.include_router(service_requests.router)
 
-# Business-feature routers (bookings, service_requests, reviews, ...) are
+# Business-feature routers (bookings, reviews, ...) are
 # owned by their respective teams and are wired in as each becomes ready.
 # users/technicians/admin above currently expose only the minimal
 # auth-scoped endpoints (own profile, RBAC-gated reads) needed to
