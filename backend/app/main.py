@@ -60,7 +60,7 @@ app.include_router(admin.router)
 app.include_router(service_requests.router)
 app.include_router(whatsapp.router)
 
-# Business-feature routers (bookings, service_requests, reviews, ...) are
+# Business-feature routers (bookings, reviews, ...) are
 # owned by their respective teams and are wired in as each becomes ready.
 # users/technicians/admin above currently expose only the minimal
 # auth-scoped endpoints (own profile, RBAC-gated reads) needed to

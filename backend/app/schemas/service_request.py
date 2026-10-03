@@ -4,7 +4,7 @@ Pydantic schemas for Service Requests and Multi-Modal Customer Intake workflows.
 from typing import Any
 import uuid
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class VoiceProcessingStateResponse(BaseModel):
@@ -57,6 +57,19 @@ class CustomerIntakeRequest(BaseModel):
         default_factory=dict,
         description="Additional context such as client device, channel, or location coordinates.",
     )
+
+    @model_validator(mode='after')
+    def validate_request_content(self) -> "CustomerIntakeRequest":
+        is_voice = bool(self.input_type == "VOICE" or self.audio_ref or self.media_ref)
+        
+        if self.input_type == "TEXT" or not is_voice:
+            if not self.request_text or not self.request_text.strip():
+                raise ValueError("request_text must be provided and cannot be empty or whitespace-only.")
+        
+        if self.request_text is not None and not self.request_text.strip():
+            raise ValueError("request_text must not be empty or whitespace-only.")
+
+        return self
 
 
 class CustomerIntakeResponse(BaseModel):

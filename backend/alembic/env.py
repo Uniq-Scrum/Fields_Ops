@@ -25,6 +25,7 @@ from app.core.database import Base
 # autogenerate compares it against the live database schema.
 import app.models.user  # noqa: F401
 import app.models.field_officer  # noqa: F401
+import app.models.service_request  # noqa: F401
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
