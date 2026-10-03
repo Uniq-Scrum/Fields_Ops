@@ -1,32 +1,50 @@
-"""Customer service-request intake endpoints."""
-from fastapi import APIRouter, Depends, status
-from sqlalchemy.orm import Session
+"""
+FastAPI routes for Service Requests and AI Intake.
 
-from app.api.deps import require_role
-from app.core.database import get_db
-from app.models.user import User, UserRole
-from app.schemas.service_request import TextRepairRequest, TextRepairRequestResponse
-from app.services.service_request_service import ServiceRequestService
+Provides endpoints to ingest customer repair requests across Text and Voice modalities,
+initiating the LangGraph multi-agent orchestration pipeline.
+"""
+from fastapi import APIRouter, status
 
-router = APIRouter(prefix="/api/v1/service-requests", tags=["service-requests"])
+from app.schemas.service_request import (
+    CustomerIntakeRequest,
+    CustomerIntakeResponse,
+    VoiceIntakeRequest,
+    VoiceIntakeResponse,
+)
+from app.services.booking_service import BookingService
+
+router = APIRouter(prefix="/api/v1/requests", tags=["service-requests"])
 
 
 @router.post(
-    "",
-    response_model=TextRepairRequestResponse,
-    status_code=status.HTTP_201_CREATED,
-    summary="Submit a text repair request",
+    "/intake",
+    response_model=CustomerIntakeResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Unified multi-modal customer request intake (Text or Voice)",
+    description=(
+        "Receives a customer repair request in either natural-language text or "
+        "persisted voice audio format. Initializes LangGraph intake state, routes "
+        "to the appropriate ingestion node, runs Whisper transcription if voice, "
+        "and prepares state for intent diagnostics."
+    ),
 )
-def submit_text_repair_request(
-    payload: TextRepairRequest,
-    current_user: User = Depends(require_role(UserRole.CUSTOMER)),
-    db: Session = Depends(get_db),
-) -> TextRepairRequestResponse:
-    service_request = ServiceRequestService(db).submit_text_request(
-        payload.request_text,
-        customer_id=current_user.id,
-    )
-    return TextRepairRequestResponse(
-        request_id=service_request.id,
-        status=service_request.status.lower(),
-    )
+def handle_customer_intake(request: CustomerIntakeRequest) -> CustomerIntakeResponse:
+    """Unified entrypoint connecting Text or Voice customer requests to LangGraph."""
+    return BookingService.process_customer_intake(request)
+
+
+@router.post(
+    "/voice-intake",
+    response_model=VoiceIntakeResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Connect a validated voice request to the LangGraph AI intake workflow",
+    description=(
+        "Receives a voice request with its persisted media reference, "
+        "initializes the voice processing state in LangGraph, and executes "
+        "Whisper audio transcription toward intent extraction."
+    ),
+)
+def handle_voice_intake(request: VoiceIntakeRequest) -> VoiceIntakeResponse:
+    """Dedicated voice entrypoint connecting audio media to the AI intake workflow."""
+    return BookingService.process_voice_intake(request)

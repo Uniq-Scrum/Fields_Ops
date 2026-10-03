@@ -1,4 +1,4 @@
-# Customer Request Payload Validation Tests
+# Customer Request & Intake Validation Tests
 
 This document describes the test cases created to ensure the `CustomerRequestPayload` schema accurately implements the required backend validation logic. It also provides instructions on how to execute these tests.
 
@@ -38,6 +38,39 @@ This document describes the test cases created to ensure the `CustomerRequestPay
 
 ---
 
+## Customer Intake Request Validation Tests (Multi-Modal Workflow)
+
+These tests ensure the `CustomerIntakeRequest` schema enforces strict validation rules, particularly around text input, across text and voice intake modalities.
+
+### 1. Empty or Whitespace Requests are Rejected
+**Test**: `test_empty_text_request_rejected`
+- **Description**: Ensures that a text request with an empty string `""` is rejected.
+
+**Test**: `test_whitespace_only_text_request_rejected`
+- **Description**: Ensures that a text request containing only spaces, tabs, or newlines is rejected.
+
+**Test**: `test_voice_request_with_whitespace_text_rejected`
+- **Description**: Ensures that even for a voice request, if `request_text` is optionally provided, it cannot be a whitespace-only string.
+
+### 2. Missing Request Text is Rejected (When Required)
+**Test**: `test_missing_text_request_rejected`
+- **Description**: Rejects a payload explicitly specifying `input_type="TEXT"` without providing `request_text`.
+
+**Test**: `test_default_input_type_missing_text_rejected`
+- **Description**: Rejects a payload with no `input_type` and no voice references, as it defaults to expecting a valid text request.
+
+### 3. Valid Requests Proceed
+**Test**: `test_valid_text_request`
+- **Description**: Sends a correctly formatted text request and verifies it passes validation.
+
+**Test**: `test_valid_voice_request`
+- **Description**: Sends a correctly formatted voice request (with `input_type="VOICE"` and `audio_ref`) and verifies it passes.
+
+**Test**: `test_missing_input_type_with_audio_ref_valid`
+- **Description**: Confirms that providing an `audio_ref` without explicitly setting `input_type="VOICE"` is correctly inferred and validated as a voice request.
+
+---
+
 ## Instructions: How to Run the Tests
 
 To test the module and verify all rules are passing, you can run the provided unit tests via `pytest`.
@@ -52,9 +85,16 @@ Activate the backend environment using PowerShell:
 ```
 
 ### Step 3: Run the Tests
-Execute the specific test file using `pytest`:
+Execute the specific test files using `pytest`:
+
+For Customer Request Payload tests:
 ```powershell
 python -m pytest backend\tests\test_customer_request_validation.py -v
+```
+
+For Customer Intake Request tests:
+```powershell
+python -m pytest backend\tests\test_customer_intake_validation.py -v
 ```
 
 ### Expected Output
@@ -74,4 +114,82 @@ backend\tests\test_customer_request_validation.py::test_invalid_location_longitu
 backend\tests\test_customer_request_validation.py::test_missing_location_allowed PASSED
 
 ============================== 8 passed in 1.00s ==============================
+```
+
+---
+
+## Manual API Testing via Swagger UI
+
+If you want to manually test the `CustomerIntakeRequest` validation logic using the FastAPI interactive documentation (`/docs`), you can run the server and use the following JSON payloads.
+
+1. Start the development server:
+   ```powershell
+   cd backend
+   uvicorn app.main:app --reload
+   ```
+2. Navigate to [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs) in your browser.
+3. Open the **`POST /api/v1/requests/intake`** endpoint and click **Try it out**.
+4. Use the following payloads in the Request Body:
+
+### ✅ Test Case A: Valid Text Request
+**Expected Result**: `200 OK` (Validation passes, request proceeds).
+```json
+{
+  "input_type": "TEXT",
+  "request_text": "My kitchen sink is leaking continuously from the bottom pipe.",
+  "customer_info": {
+    "name": "John Doe",
+    "phone": "555-1234"
+  }
+}
+```
+
+### ❌ Test Case B: Empty Text Request (Rejected)
+**Expected Result**: `422 Unprocessable Entity` (Validation catches the empty string).
+```json
+{
+  "input_type": "TEXT",
+  "request_text": "",
+  "customer_info": {}
+}
+```
+
+### ❌ Test Case C: Whitespace-Only Text Request (Rejected)
+**Expected Result**: `422 Unprocessable Entity`
+```json
+{
+  "input_type": "TEXT",
+  "request_text": "      \n   ",
+  "customer_info": {}
+}
+```
+
+### ❌ Test Case D: Missing Text Request (Rejected)
+**Expected Result**: `422 Unprocessable Entity`
+```json
+{
+  "input_type": "TEXT",
+  "customer_info": {}
+}
+```
+
+### ✅ Test Case E: Valid Voice Request
+**Expected Result**: `200 OK` (Validation passes because voice inputs have different requirements).
+```json
+{
+  "input_type": "VOICE",
+  "audio_ref": "s3://my-bucket/recordings/audio123.mp3",
+  "customer_info": {}
+}
+```
+
+### ❌ Test Case F: Voice Request with Invalid Optional Text (Rejected)
+**Expected Result**: `422 Unprocessable Entity`
+```json
+{
+  "input_type": "VOICE",
+  "audio_ref": "s3://my-bucket/recordings/audio123.mp3",
+  "request_text": "    ",
+  "customer_info": {}
+}
 ```
