@@ -59,9 +59,9 @@ export default function App() {
   return (
     <main className="app-shell">
       <nav className="topbar" aria-label="Main navigation">
-        <a className="brand" href="/" aria-label="FieldMind home">
+        <a className="brand" href="/" aria-label="FixFleet home">
           <span className="brand-mark"><Wrench size={17} strokeWidth={2.7} /></span>
-          <span>fieldmind<span className="brand-dot">.</span></span>
+          <span>FixFleet<span className="brand-dot">.</span></span>
         </a>
         <div className="nav-meta"><span className="status-dot" /> Available in your area <ArrowUpRight size={15} /></div>
       </nav>
@@ -92,7 +92,7 @@ export default function App() {
             <p id="description-hint" className="field-hint">Include what happened, where it is, and how urgent it feels.</p>
             {error && <p id="form-feedback" className="form-message error-message" role="alert">{error}</p>}
             {submittedJobId && <p id="form-feedback" className="form-message success-message" role="status"><Check size={16} /> Request received. Job {submittedJobId.slice(0, 8)} is being matched.</p>}
-            <button className="submit-button focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#e66d3f]" type="submit" disabled={isSubmitting}>
+            <button className="submit-button focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#e66d3f]" type="submit" disabled={isSubmitting || !description.trim()}>
               {isSubmitting ? <><span className="spinner" /> Finding your pro...</> : <>Find my professional <ArrowUpRight size={18} /></>}
             </button>
           </form>
