@@ -57,6 +57,15 @@ lives under `infrastructure/`. Business logic (routes, services, models)
 must not encode infrastructure specifics (hosts, ports, credentials) —
 those come from environment variables via `backend/app/core/config.py`.
 
+## Customer request intake
+
+The customer UI sends `POST /api/service-requests` with a `user_prompt`
+field. When running Vite locally, requests under `/api` are proxied to
+`http://127.0.0.1:8000`, where FastAPI validates the description and returns
+a `202 Accepted` response with a `job_id`, `status`, and message. This is
+currently an intake acknowledgement only; persistence and technician matching
+are not part of this endpoint yet.
+
 ## Services
 
 | Service     | Container name        | Image                              | Host port(s)         |

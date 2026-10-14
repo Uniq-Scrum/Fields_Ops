@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ArrowUpRight, Check, CircleHelp, Clock3, MapPin, ShieldCheck, Sparkles, Wrench } from "lucide-react";
-import { createServiceRequest } from "./services/api";
+import VoiceInput from "./components/VoiceInput";
+import { createServiceRequest, type CreateServiceRequestResponse } from "./services/api";
 
 const examplePrompts = [
   "The kitchen sink is leaking under the cabinet",
@@ -25,11 +26,16 @@ function validateDescription(description: string): string | null {
 export default function App() {
   const [description, setDescription] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submittedJobId, setSubmittedJobId] = useState<string | null>(null);
+  const [submittedRequest, setSubmittedRequest] = useState<CreateServiceRequestResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const submissionInProgress = useRef(false);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (submissionInProgress.current) {
+      return;
+    }
+
     const trimmedDescription = description.trim();
     const validationError = validateDescription(trimmedDescription);
 
@@ -39,13 +45,15 @@ export default function App() {
     }
 
     setError(null);
+    submissionInProgress.current = true;
     setIsSubmitting(true);
     try {
       const result = await createServiceRequest({ user_prompt: trimmedDescription });
-      setSubmittedJobId(result.job_id);
+      setSubmittedRequest(result);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Something went wrong. Please try again.");
     } finally {
+      submissionInProgress.current = false;
       setIsSubmitting(false);
     }
   }
@@ -53,7 +61,7 @@ export default function App() {
   function chooseExample(example: string) {
     setDescription(example);
     setError(null);
-    setSubmittedJobId(null);
+    setSubmittedRequest(null);
   }
 
   return (
@@ -83,17 +91,18 @@ export default function App() {
           <form onSubmit={handleSubmit} noValidate>
             <label htmlFor="repair-description">Describe the problem</label>
             <div className={`textarea-wrap ${error ? "has-error" : ""}`}>
-              <textarea id="repair-description" value={description} onChange={(event) => { setDescription(event.target.value); setError(null); setSubmittedJobId(null); }} placeholder="e.g. Water is leaking from the pipe under my kitchen sink..." maxLength={1000} aria-describedby="description-hint form-feedback" aria-invalid={Boolean(error)} />
+              <textarea id="repair-description" value={description} onChange={(event) => { setDescription(event.target.value); setError(null); setSubmittedRequest(null); }} placeholder="e.g. Water is leaking from the pipe under my kitchen sink..." maxLength={1000} aria-describedby="description-hint form-feedback" aria-invalid={Boolean(error)} />
               <span className="character-count">{description.length}/1000</span>
             </div>
             <div className="prompt-examples" aria-label="Example descriptions">
               {examplePrompts.map((example) => <button className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-[#e66d3f]" type="button" key={example} onClick={() => chooseExample(example)}>{example}</button>)}
             </div>
+            <VoiceInput />
             <p id="description-hint" className="field-hint">Include what happened, where it is, and how urgent it feels.</p>
             {error && <p id="form-feedback" className="form-message error-message" role="alert">{error}</p>}
-            {submittedJobId && <p id="form-feedback" className="form-message success-message" role="status"><Check size={16} /> Request received. Job {submittedJobId.slice(0, 8)} is being matched.</p>}
+            {submittedRequest && <p id="form-feedback" className="form-message success-message" role="status"><Check size={16} /> {submittedRequest.message} Reference {submittedRequest.job_id.slice(0, 8)}.</p>}
             <button className="submit-button focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#e66d3f]" type="submit" disabled={isSubmitting || !description.trim()}>
-              {isSubmitting ? <><span className="spinner" /> Finding your pro...</> : <>Find my professional <ArrowUpRight size={18} /></>}
+              {isSubmitting ? <><span className="spinner" /> Sending your request...</> : <>Find my professional <ArrowUpRight size={18} /></>}
             </button>
           </form>
           <div className="panel-footer"><span><Clock3 size={15} /> Usually matched in under 3 minutes</span><span><MapPin size={15} /> Local professionals</span></div>
