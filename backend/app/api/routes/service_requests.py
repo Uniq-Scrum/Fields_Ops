@@ -4,17 +4,36 @@ FastAPI routes for Service Requests and AI Intake.
 Provides endpoints to ingest customer repair requests across Text and Voice modalities,
 initiating the LangGraph multi-agent orchestration pipeline.
 """
+from uuid import uuid4
+
 from fastapi import APIRouter, status
 
 from app.schemas.service_request import (
     CustomerIntakeRequest,
     CustomerIntakeResponse,
+    ServiceRequestCreate,
+    ServiceRequestResponse,
     VoiceIntakeRequest,
     VoiceIntakeResponse,
 )
 from app.services.booking_service import BookingService
 
 router = APIRouter(prefix="/api/v1/requests", tags=["service-requests"])
+legacy_router = APIRouter(prefix="/api/service-requests", tags=["service requests"])
+
+
+@legacy_router.post(
+    "",
+    response_model=ServiceRequestResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Receive a customer service request",
+)
+def create_service_request(payload: ServiceRequestCreate) -> ServiceRequestResponse:
+    return ServiceRequestResponse(
+        job_id=str(uuid4()),
+        status="received",
+        message="Your request was received.",
+    )
 
 
 @router.post(

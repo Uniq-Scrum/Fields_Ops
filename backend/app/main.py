@@ -58,6 +58,7 @@ app.include_router(users.router)
 app.include_router(technicians.router)
 app.include_router(admin.router)
 app.include_router(service_requests.router)
+app.include_router(service_requests.legacy_router)
 app.include_router(whatsapp.router)
 
 # Business-feature routers (bookings, service_requests, reviews, ...) are
